@@ -9,7 +9,7 @@ public class EEGraph
   public static void main(String [] args) throws IOException
   {
     Scanner scan = new Scanner(System.in);
-    System.out.print("n = ");
+    /*System.out.print("n = ");
     n = scan.nextInt();
     System.out.print("delta = ");
     int delta = scan.nextInt();
@@ -19,11 +19,15 @@ public class EEGraph
     double beta = scan.nextDouble();
     System.out.print("r0 = ");
     double r0 = scan.nextDouble();
+    */
+    n=10;int delta=3;double alpha=.2;double beta=.5;double r0=2; //hardcoded for now so i don't have to type in numbers everytime
     D = new Digraph(n);
     baseExpander(n, alpha, beta, r0);
     printGraph();
 
     Random rand = new Random();
+
+    //algorithm 5.1
     for(int v = 1; v < n-1; v++)
     {
       for(int i = 1; i < Math.ceil(delta * Math.log(v+1)/Math.log(2)); i++)
@@ -36,6 +40,9 @@ public class EEGraph
     }
 
     printGraph();
+    for(Edge e : findLongestPath())
+       System.out.print(e.toString() + " ");
+    System.out.println();
     //erdosAttack(1,2);
     //System.out.println("erdosAttack");
     //printGraph();
@@ -157,6 +164,65 @@ public class EEGraph
     D.adj[v].removeAll(toRemove); //don't want to mess with iterable, while iterating
     n--;
   }
+
+  //code i found online(and modified) for finding longest path using dynamic programming
+  static void dfs(int node, int dp[],boolean visited[], ArrayList<Edge> path, ArrayList<ArrayList<Edge>> listOfPaths)
+   {
+     // Mark as visited
+     visited[node] = true;
+
+     ArrayList<Edge> currPath = new ArrayList<Edge>(path);
+     // Traverse for all its children
+     if(D.adj(node)==null) return;
+
+     for (Edge e : D.adj(node))
+     {
+       // If not visited
+       if (!visited[e.destination])
+       {
+          currPath.add(e);
+          listOfPaths.add(currPath);
+          dfs(e.destination, dp, visited, currPath, listOfPaths);
+        }
+       // Store the max of the paths
+       dp[node] = Math.max(dp[node], 1 + dp[e.destination]);
+     }
+   }
+
+   // Function that returns the longest path
+   static ArrayList<Edge> findLongestPath()
+   {
+     int[] dp = new int[n+1];
+
+     // Visited array to know if the node
+     // has been visited previously or not
+     boolean[] visited = new boolean[n + 1];
+
+     ArrayList<ArrayList<Edge>>paths = new ArrayList<ArrayList<Edge>>();
+
+     for (int i = 1; i <= n; i++)
+       if (!visited[i])
+           dfs(i, dp, visited, new ArrayList<Edge>(), paths); // Call DFS for every unvisited vertex
+
+
+     // Traverse and find the maximum of all dp[i]
+     int ans = 0;
+     for (int i = 1; i <= n; i++)
+     {
+         ans = Math.max(ans, dp[i]);
+     }
+     System.out.println("length of longestPath is " + ans);
+
+     ArrayList<Edge> longestPath = new ArrayList<Edge>();
+     for(ArrayList<Edge> arr : paths)
+      if(arr.size()>longestPath.size())
+        longestPath = arr;
+
+     return longestPath;
+   }
+
+
+
 }//end EEGraph class------------------------------------------------------------
 
 class Digraph
@@ -164,7 +230,6 @@ class Digraph
   public final int v;
   public int m;
   public LinkedList<Edge>[] adj;
-
 
   public Digraph(int v)
   {
@@ -193,6 +258,7 @@ class Digraph
   {
     return adj[v];
   }
+
 }//end Digraph class------------------------------------------------------------
 
 class Edge
