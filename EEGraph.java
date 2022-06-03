@@ -4,6 +4,7 @@ import java.io.*;
 public class EEGraph
 {
   static int n;
+  static int delta;
   static Digraph D;
 
   public static void main(String [] args) throws IOException
@@ -20,10 +21,13 @@ public class EEGraph
     System.out.print("r0 = ");
     double r0 = scan.nextDouble();
     */
-    n=10;int delta=3;double alpha=.2;double beta=.5;double r0=2; //hardcoded for now so i don't have to type in numbers everytime
+    n=100; double alpha=.2; double beta=1-alpha; double r0=64; //for now we let beta = 1-alpha
+
     D = new Digraph(n);
     baseExpander(n, alpha, beta, r0);
-    printGraph();
+    //printGraph();
+    findDelta(alpha,beta);
+
 
     Random rand = new Random();
 
@@ -33,24 +37,21 @@ public class EEGraph
       for(int i = 1; i < Math.ceil(delta * Math.log(v+1)/Math.log(2)); i++)
       {
         int k = (int)Math.floor(rand.nextDouble(Math.log(v+1)));
-        Edge e = new Edge(v,v - (int)Math.pow(2,k));
+        Edge e = new Edge(v - (int)Math.pow(2,k),v);
         if(D.addEdge(e))
           System.out.println("added " + e.toString());
       }
     }
 
-    printGraph();
-    for(Edge e : findLongestPath())
-       System.out.print(e.toString() + " ");
-    System.out.println();
-    //erdosAttack(1,2);
+    System.out.println("Longest path = " + findLongestPath());
     //System.out.println("erdosAttack");
-    //printGraph();
+    //erdosAttack(.2);
+
   }
 
   public static void printGraph()
   {
-    for(int i  = 1; i < n-1;i++)
+    for(int i  = 0; i < n;i++)
     {
       if(D.adj[i]!=null)
         for(Edge e : D.adj(i))
@@ -58,19 +59,24 @@ public class EEGraph
     }
   }
 
+  //for now we assume beta = 1-alpha
+  static void findDelta(double alpha, double beta)
+  {
+    delta = 2; //just so it compiles
+  }
+
   public static void baseExpander(int n, double a, double b, double r0)
   {
     for(int i = 1 ; i<n-1;i++)
-    {
       for(int j = 1 ; j<n-1;j++)
         if(j-i>0 && j-i<2*r0)
           D.addEdge(new Edge(i,j));
-    }
   }
 
   @SuppressWarnings("unchecked")
-  public static ArrayList<Integer> erdosAttack(int e, int d)
+  public static void erdosAttack(double e)  //ArrayList<Integer> erdosAttack(double e)
   {
+    double d = .2; // just so it compiles
     int p = (int)(-2*Math.log(d));
     int r = (int)(Math.log(n)/p);
     ArrayList<Edge>[] C = (ArrayList<Edge>[]) new ArrayList[r];
@@ -137,7 +143,9 @@ public class EEGraph
     {
       deleteVertex(v);
     }
-    return S;//return set of vertices removed
+
+    System.out.println("Longest path = " + findLongestPath());
+    //return S;//return set of vertices removed
   }
 
   public static void deleteVertex(int v)
@@ -165,63 +173,51 @@ public class EEGraph
     n--;
   }
 
-  //code i found online(and modified) for finding longest path using dynamic programming
-  static void dfs(int node, int dp[],boolean visited[], ArrayList<Edge> path, ArrayList<ArrayList<Edge>> listOfPaths)
-   {
-     // Mark as visited
-     visited[node] = true;
-
-     ArrayList<Edge> currPath = new ArrayList<Edge>(path);
-     // Traverse for all its children
-     if(D.adj(node)==null) return;
-
-     for (Edge e : D.adj(node))
-     {
-       // If not visited
-       if (!visited[e.destination])
-       {
-          currPath.add(e);
-          listOfPaths.add(currPath);
-          dfs(e.destination, dp, visited, currPath, listOfPaths);
-        }
-       // Store the max of the paths
-       dp[node] = Math.max(dp[node], 1 + dp[e.destination]);
-     }
-   }
-
    // Function that returns the longest path
-   static ArrayList<Edge> findLongestPath()
+   static int findLongestPath()
    {
-     int[] dp = new int[n+1];
-
-     // Visited array to know if the node
-     // has been visited previously or not
-     boolean[] visited = new boolean[n + 1];
-
-     ArrayList<ArrayList<Edge>>paths = new ArrayList<ArrayList<Edge>>();
-
-     for (int i = 1; i <= n; i++)
-       if (!visited[i])
-           dfs(i, dp, visited, new ArrayList<Edge>(), paths); // Call DFS for every unvisited vertex
-
-
-     // Traverse and find the maximum of all dp[i]
-     int ans = 0;
-     for (int i = 1; i <= n; i++)
-     {
-         ans = Math.max(ans, dp[i]);
-     }
-     System.out.println("length of longestPath is " + ans);
-
      ArrayList<Edge> longestPath = new ArrayList<Edge>();
-     for(ArrayList<Edge> arr : paths)
-      if(arr.size()>longestPath.size())
-        longestPath = arr;
+     int longestLength = 0;
+     for(int source = 1; source<n-1; source++)
+     {
+       for(int dest = 0; dest<n;dest++)
+       {
+         int currLength = 0;
+         ArrayList<Edge> currPath = new ArrayList<Edge>();
+         D.dijkstras(source,dest);
 
-     return longestPath;
+         if(!D.marked[dest])//if no path from source to dest, skip
+          continue;
+
+         Stack<Integer> path = new Stack<Integer>();
+         for (int x = dest; x != source; x = D.edgeTo[x])
+         {
+            path.push(x);
+            currLength++;
+            currPath.add(new Edge(x, D.edgeTo[x]));
+         }
+
+         int prevVertex = source;
+         while(!path.empty())
+         {
+           int w = path.pop();
+           prevVertex = w;
+         }
+
+         if(currLength>longestLength)
+         {
+          longestLength = currLength;
+          longestPath = currPath;
+         }
+       }
+     }
+
+     System.out.print("longest path: ");
+     for(Edge e : longestPath) System.out.print(e.toString() + " ");
+     System.out.println();
+
+     return longestLength;
    }
-
-
 
 }//end EEGraph class------------------------------------------------------------
 
@@ -230,6 +226,10 @@ class Digraph
   public final int v;
   public int m;
   public LinkedList<Edge>[] adj;
+  public boolean marked[];
+  public int distTo[];
+  public int edgeTo[];
+
 
   public Digraph(int v)
   {
@@ -247,11 +247,44 @@ class Digraph
   public boolean addEdge(Edge edge)
   {
     int from = edge.source;
-    if(adj[from].contains(edge))
-      return false;
-    adj[from].add(edge);
-    m++;
-    return true;
+    int to = edge.destination;
+
+    //case where both are null
+    if(adj[from] == null && adj[to] == null)
+    {
+      adj[from] = new LinkedList<Edge>();
+      adj[from].add(edge);
+      m++;
+      return true;
+    }
+
+    //case where to is null, and from does not contain edge
+    if(adj[from] != null && !adj[to].contains(edge) && adj[to] == null )
+    {
+      adj[from].add(edge);
+      m++;
+      return true;
+    }
+
+    //case where from is null, and to does not contain edge
+    if(adj[from] == null && adj[to] != null && !adj[to].contains(new Edge(to, from)))
+    {
+      adj[from] = new LinkedList<Edge>();
+      adj[from].add(edge);
+      m++;
+      return true;
+    }
+
+    //case where neither is null, and neither contains edge
+    if(adj[from] != null && !adj[from].contains(edge) && adj[to] != null && !adj[to].contains(new Edge(to, from)))
+    {
+      adj[from].add(edge);
+      m++;
+      return true;
+    }
+
+    return false; //otherwise
+
   }
 
   public Iterable<Edge> adj(int v)
@@ -259,6 +292,57 @@ class Digraph
     return adj[v];
   }
 
+  public void dijkstras(int source, int destination)
+  {
+    marked = new boolean[this.v];
+    distTo = new int[this.v];
+    edgeTo = new int[this.v];
+
+
+    for (int i = 0; i < v; i++)
+    {
+      distTo[i] = -1; //initialize distance to every vertex to be -1
+      marked[i] = false; //and unmarked
+    }
+
+    distTo[source] = 0; //source has distance of 0, and is marked
+    marked[source] = true;
+    int nMarked = 1; //number of marked vertices is 1
+
+    int current = source;
+    while (nMarked < this.v) //while there are unmarked vertices
+    {
+      for (Edge w : adj(current)) //check every adjacent edge to source
+      {
+        if (distTo[current]+1 > distTo[w.destination]) //if the adding this edge increases the distance to the a vertex v,
+        {
+          distTo[w.destination] = distTo[current]+1; //update the distTo array for that vertex
+          edgeTo[w.destination] = current; //and update the edgeTo array to note the longestPath
+        }
+      }
+
+      int max = -1;
+      current = -1;
+
+      //I should do this more efficiently with a priority queue
+      for(int i=0; i<distTo.length; i++)
+      {
+        if(marked[i])
+          continue;
+        if(distTo[i] > max)
+        {
+          max = distTo[i];
+          current = i;
+        }
+      }
+
+      //TODO: Update marked[] and nMarked. Check for disconnected graph.
+      if(current==-1) break;
+      marked[current]=true;
+      nMarked--;
+
+    }
+  }
 }//end Digraph class------------------------------------------------------------
 
 class Edge
