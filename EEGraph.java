@@ -5,30 +5,34 @@ public class EEGraph
 {
   static int n;
   static int delta;
+  static double e;
+  static double d;
   static Digraph D;
 
   public static void main(String [] args) throws IOException
   {
     Scanner scan = new Scanner(System.in);
+
+    //for now, all parameters are hardcoded
     /*System.out.print("n = ");
     n = scan.nextInt();
-    System.out.print("delta = ");
-    int delta = scan.nextInt();
-    System.out.print("alpha = ");
-    double alpha = scan.nextDouble();
-    System.out.print("beta = ");
-    double beta = scan.nextDouble();
     System.out.print("r0 = ");
     double r0 = scan.nextDouble();
+    System.out.println("Desired depth robustness? e  = ");
+    e = scan.nextDouble();
+    System.out.print("d = ");
+    d = scan.nextDouble();
     */
-    n=100; int r_0=64;
-    D = new Digraph(n);
 
-    double [] parameters = findParameters(r_0);
-    double alpha = parameters[0];
-    double beta = parameters[1];
+    n=1000; int r_0=32; e = .11; d = .22;
+    D = new Digraph(n);
+    double alpha = findParameters(e,d,r_0);
+    double beta = 1-alpha;//simplification for now;
+
+    delta = (int)Math.ceil(-2*(-alpha*Math.log(alpha)-(1-alpha)*Math.log(1-alpha))*Math.log(2)/(alpha*Math.log((2-alpha)/2))); //condition for delta outlined in Overleaf doc
+
     System.out.println("alpha = " + alpha + ". beta = " + beta + ". delta = " + delta);
-    baseExpander(n, alpha, beta, r_0);
+    baseExpander(n, alpha, beta, r_0); //construct base of graph
 
     //algorithm 5.1
     Random rand = new Random();
@@ -39,15 +43,14 @@ public class EEGraph
         int k = (int)Math.floor(rand.nextDouble(Math.log(v+1)));
         Edge e = new Edge(v - (int)Math.pow(2,k),v);
         if(D.addEdge(e))
-          System.out.println("added " + e.toString());
+          continue;//System.out.println("added " + e.toString());
       }
     }
 
-    System.out.println("Longest path = " + findLongestPath());
-    System.out.println("erdosAttack");
-    ArrayList<Integer> removedVertices = erdosAttack(.2);
+    //System.out.println("Longest path = " + findLongestPath());
+    ArrayList<Integer> removedVertices = erdosAttack(.11);
     //for(int v : removedVertices)
-    //  System.out.println("Removed " + v);
+      //System.out.println("Removed " + v);
   }
 
   public static void printGraph()
@@ -61,24 +64,21 @@ public class EEGraph
   }
 
   //for now we assume beta = 1-alpha
-  static double[] findParameters(int r_0)
+  static double findParameters(double e, double d, int r_0)
   {
-    double alpha = .01;
-    double parameters[]=new double[2];
-    delta = n;
-    while(alpha < .5-1/r_0)
+    double alpha  = 0;
+    double currAlpha = 0;
+    while(currAlpha<.5)
     {
-      //System.out.println("in loop. alpha="+alpha);
-      int currDelta = (int)Math.ceil(-2*(-alpha*Math.log(alpha)-(1-alpha)*Math.log(1-alpha))*Math.log(2)/(alpha*Math.log((2-alpha)/2)));
-      if(currDelta<delta && 2*Math.PI*r_0 >=(1-alpha)/Math.pow(alpha,3))
+      double e_max = (1-2*currAlpha)/(1+2*currAlpha);
+      double d_max = 1-e/e_max;
+      if(e < e_max && d<=d_max)
       {
-        delta = currDelta;
-        parameters[0]=alpha;
-        parameters[1]=1-alpha;
+        alpha = currAlpha;
       }
-      alpha+=.001;
+      currAlpha+=.001;
     }
-    return parameters;
+    return alpha;
   }
 
   public static void baseExpander(int n, double a, double b, double r0)
@@ -92,9 +92,12 @@ public class EEGraph
   @SuppressWarnings("unchecked")
   public static ArrayList<Integer> erdosAttack(double e)
   {
-    double p = findP(e);
-    int r = (int)(Math.log(n)/p);
+    int edgeCount = 0;
+    int r = 7;
+    double p = Math.log(n)/r;
     System.out.println("r  = " + r + ". p = " + p);
+
+    //divide edges into sets based on their length
     ArrayList<Edge>[] C = (ArrayList<Edge>[]) new ArrayList[r];
     for(int k = 0; k < r; k++)
     {
@@ -106,11 +109,16 @@ public class EEGraph
           int length = s.destination-u;
           if(length >= Math.pow(2,k*p) && length < Math.pow(2,(k+1)*p))
           {
-            System.out.println("added " + s.toString() + " to C["+k+"]: " + C[k].add(s));
+            C[k].add(s);
+            edgeCount++;
           }
         }
       }
     }
+
+    System.out.println("total edges in the C_i = " + edgeCount + ". true size = "+D.m);
+
+    //find a set with number of edges below average to remove
     ArrayList<Edge> C_k = new ArrayList<Edge> ();
     int k = 0;
     for(int i = 0; i< r; i++)
@@ -119,23 +127,16 @@ public class EEGraph
       {
         C_k = C[i];
         k = i;
+        System.out.println("changed k to " + k);
         break;
       }
     }
 
-    /*
-    for(int i = 0; i<r;i++)
-    {
-      System.out.println("Size of C_"+i+" = " + C[i].size());
-    }
+    //print out size of each C_i(debugging)
+    for(int i  = 0; i<r; i++)
+      System.out.println("Size of C_" + i + " = " + C[i].size());
 
-    System.out.println("edges in C_k: ");
-    for(Edge s: C_k)
-    {
-      System.out.print(s.toString() + " ");
-    }
-    */
-
+    //construct blocks of consecutive vertices
     int bigConst = (int)(Math.pow(2,k*p)*(1+Math.pow(2,p/2)));
     int numVSets = (int) n/bigConst;
     ArrayList<Integer>[] B = (ArrayList<Integer>[]) new ArrayList[numVSets];
@@ -151,6 +152,7 @@ public class EEGraph
       }
     }
 
+    //split each block into a head and tail
     ArrayList<Integer>[] H = (ArrayList<Integer>[]) new ArrayList[numVSets];
     for(int i  = 0; i< numVSets; i++)
     {
@@ -164,11 +166,14 @@ public class EEGraph
       }
     }
 
+    //remove the end vertex of each in the chosen C_k
     ArrayList<Integer> S = new ArrayList<Integer>();
     for(Edge s : C_k)
     {
       if(!S.contains(s.destination)) S.add(s.destination);
     }
+
+    //remove every vertex in the head of each block
     for(ArrayList<Integer> H_i : H)
     {
       for(int v : H_i)
@@ -185,38 +190,20 @@ public class EEGraph
       deleteVertex(v);
     }
 
-    System.out.println("Longest path = " + findLongestPath());
+    //int longPath = findLongestPath();
+    //System.out.println("Longest path = " + longPath);
+    //System.out.println("This graph is (" +e*n + ", " + longPath +")-depth robust");
+    System.out.println("total number of vertices removed = " + S.size());
+    Collections.sort(S); //want to print them out in order
     return S;//return set of vertices removed
   }
 
-  public static double findP(double e)
+  public static void deleteVertex(int v) //throws Exception
   {
-    e*=n; //note that e represents the total number of vertices to remove here, but represents
-          //the fraction to remove in erdosAttack()
-    //int lo = 0;
-    //int hi = (int)Math.log(n);
-    double  p = 0;
-    while(true)//while(lo<=hi)
-    {
-      //int p = (lo+hi)/2;
-      double test = (D.m*p*(1+Math.pow(2,p/2))+n*Math.log(n))/(Math.log(n)*(1+Math.pow(2,p/2)))-e*Math.log(n);
-      System.out.println("test = " + test + ". p = " + p);
-      if(test>=0)
-        return p;
-      p+=.01;
-      //lo = p+1;//if condition is not satisfied, ``guess'' for p was too low(since test is montonically increasing)
-    }
-    //return -1;
-  }
-
-  public static void deleteVertex(int v)
-  {
-    /*
     if(v > n)
     {
-      throw new RuntimeException("Vertex " + v + " not in digragh);
+      throw new RuntimeException("Vertex " + v +  "not in digragh");
     }
-    */
     ArrayList<Edge> toRemove = new ArrayList<Edge>(); //don't want to mess with iterable, while iterating
 
     for(int i = 1; i<n-1;i++)
@@ -233,7 +220,6 @@ public class EEGraph
       toRemove.add(r); //don't want to mess with iterable, while iterating
     }
     D.adj[v].removeAll(toRemove); //don't want to mess with iterable, while iterating
-    n--;
   }
 
    // Function that returns the longest path
