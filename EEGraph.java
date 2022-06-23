@@ -18,20 +18,21 @@ public class EEGraph
     n = scan.nextInt();
     System.out.print("r0 = ");
     double r0 = scan.nextDouble();
+    */
     System.out.println("Desired depth robustness? e  = ");
     e = scan.nextDouble();
     System.out.print("d = ");
     d = scan.nextDouble();
-    */
 
-    n=1000; int r_0=32; e = .11; d = .22;
+
+    n=1000; int r_0=32;
     D = new Digraph(n);
     double alpha = findParameters(e,d,r_0);
     double beta = 1-alpha;//simplification for now;
 
     delta = (int)Math.ceil(-2*(-alpha*Math.log(alpha)-(1-alpha)*Math.log(1-alpha))*Math.log(2)/(alpha*Math.log((2-alpha)/2))); //condition for delta outlined in Overleaf doc
 
-    System.out.println("alpha = " + alpha + ". beta = " + beta + ". delta = " + delta);
+    System.out.println("alpha = " + alpha + ". beta = " + beta + ". delta = " + delta); //debugging
     baseExpander(n, alpha, beta, r_0); //construct base of graph
 
     //algorithm 5.1
@@ -48,7 +49,7 @@ public class EEGraph
     }
 
     //System.out.println("Longest path = " + findLongestPath());
-    ArrayList<Integer> removedVertices = erdosAttack(.11);
+    ArrayList<Integer> removedVertices = erdosAttack(.22);
     //for(int v : removedVertices)
       //System.out.println("Removed " + v);
   }
@@ -92,10 +93,11 @@ public class EEGraph
   @SuppressWarnings("unchecked")
   public static ArrayList<Integer> erdosAttack(double e)
   {
-    int edgeCount = 0;
-    int r = 7;
+    int edgeCount = 0; //to see how many edges are added to the C_k(if it differs from total number of edges)
+    int r = (int)Math.ceil(D.m/997.0);
+          //(int)Math.floor(D.m/(e*n)); //this is likely the value that I will use once I figure out how to get rid of the empty sets
     double p = Math.log(n)/r;
-    System.out.println("r  = " + r + ". p = " + p);
+    System.out.println("r  = " + r + ". p = " + p); //debugging
 
     //divide edges into sets based on their length
     ArrayList<Edge>[] C = (ArrayList<Edge>[]) new ArrayList[r];
@@ -116,23 +118,25 @@ public class EEGraph
       }
     }
 
-    System.out.println("total edges in the C_i = " + edgeCount + ". true size = "+D.m);
+    System.out.println("total edges in the C_i = " + edgeCount + ". true size = "+D.m); //debugging
 
     //find a set with number of edges below average to remove
-    ArrayList<Edge> C_k = new ArrayList<Edge> ();
     int k = 0;
+    ArrayList<Edge> C_k = new ArrayList<Edge> (C[k]);
     for(int i = 0; i< r; i++)
     {
       if(C[i].size()<= D.m/r && C[i].size()!=0)
       {
         C_k = C[i];
         k = i;
-        System.out.println("changed k to " + k);
+        System.out.println("changed k to " + k); //debugging
         break;
       }
     }
 
-    //print out size of each C_i(debugging)
+
+    //debugging
+    //for(Edge s : C_k) System.out.println(s.toString());
     for(int i  = 0; i<r; i++)
       System.out.println("Size of C_" + i + " = " + C[i].size());
 
@@ -166,14 +170,24 @@ public class EEGraph
       }
     }
 
+    //debugging
+    // for(int i  = 0; i<numVSets; i++)
+    //   System.out.println("Size of H_" + i + " = " + H[i].size());
+
     //remove the end vertex of each in the chosen C_k
+    //System.out.println("removing from C_" + k); //debugging
     ArrayList<Integer> S = new ArrayList<Integer>();
     for(Edge s : C_k)
     {
-      if(!S.contains(s.destination)) S.add(s.destination);
+      if(!S.contains(s.destination))
+      {
+        S.add(s.destination);
+        //System.out.println("removing " + s.destination);//debugging
+      }
     }
 
     //remove every vertex in the head of each block
+    //System.out.println("removing from H_i"); //debugging
     for(ArrayList<Integer> H_i : H)
     {
       for(int v : H_i)
@@ -181,6 +195,7 @@ public class EEGraph
         if(!S.contains(v))
         {
           S.add(v);
+          //System.out.println("removing " + v);//debugging
         }
       }
     }
@@ -190,9 +205,9 @@ public class EEGraph
       deleteVertex(v);
     }
 
-    //int longPath = findLongestPath();
-    //System.out.println("Longest path = " + longPath);
-    //System.out.println("This graph is (" +e*n + ", " + longPath +")-depth robust");
+    // int longPath = findLongestPath();
+    // System.out.println("Longest path = " + longPath);
+    // System.out.println("This graph is (" +e*n + ", " + longPath +")-depth robust");
     System.out.println("total number of vertices removed = " + S.size());
     Collections.sort(S); //want to print them out in order
     return S;//return set of vertices removed
@@ -204,6 +219,7 @@ public class EEGraph
     {
       throw new RuntimeException("Vertex " + v +  "not in digragh");
     }
+
     ArrayList<Edge> toRemove = new ArrayList<Edge>(); //don't want to mess with iterable, while iterating
 
     for(int i = 1; i<n-1;i++)
@@ -215,10 +231,12 @@ public class EEGraph
         D.adj[i].remove(e);
       }
     }
+
     for(Edge r : D.adj(v))
     {
       toRemove.add(r); //don't want to mess with iterable, while iterating
     }
+
     D.adj[v].removeAll(toRemove); //don't want to mess with iterable, while iterating
   }
 
