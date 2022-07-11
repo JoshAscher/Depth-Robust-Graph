@@ -19,23 +19,25 @@ public class EEGraph
     System.out.print("r0 = ");
     double r0 = scan.nextDouble();
     */
-    System.out.println("Desired depth robustness? e  = ");
-    e = scan.nextDouble();
-    System.out.print("d = ");
-    d = scan.nextDouble();
+    // System.out.println("Desired depth robustness? e  = ");
+    // e = scan.nextDouble();
+    // System.out.print("d = ");
+    // d = scan.nextDouble();
 
 
-    n=1000; int r_0=32;
+    n=1000; int r_0=4; e=.22; d=.11;
     D = new Digraph(n);
     double alpha = findParameters(e,d,r_0);
     double beta = 1-alpha;//simplification for now;
 
     delta = (int)Math.ceil(-2*(-alpha*Math.log(alpha)-(1-alpha)*Math.log(1-alpha))*Math.log(2)/(alpha*Math.log((2-alpha)/2))); //condition for delta outlined in Overleaf doc
-
     System.out.println("alpha = " + alpha + ". beta = " + beta + ". delta = " + delta); //debugging
-    baseExpander(n, alpha, beta, r_0); //construct base of graph
+
+    //baseExpander(n, alpha, beta, r_0); //construct base of graph
+    System.out.println("edges added from base expander: " + D.m);
 
     //algorithm 5.1
+    int edgeAdded = 0;
     Random rand = new Random();
     for(int v = 1; v < n-1; v++)
     {
@@ -44,24 +46,24 @@ public class EEGraph
         int k = (int)Math.floor(rand.nextDouble(Math.log(v+1)));
         Edge e = new Edge(v - (int)Math.pow(2,k),v);
         if(D.addEdge(e))
-          continue;//System.out.println("added " + e.toString());
+          edgeAdded++;//continue;//System.out.println("added " + e.toString());
       }
     }
 
-    //System.out.println("Longest path = " + findLongestPath());
-    ArrayList<Integer> removedVertices = erdosAttack(.22);
-    //for(int v : removedVertices)
-      //System.out.println("Removed " + v);
+    System.out.println("edges added from alg: " + edgeAdded);
+    System.out.println("total size: " + D.m);
+
+    degreeD(); //display how many vertices are of each degree
+    lazyValiantAttack();
+    System.out.println("Longest path after deletion = " + findLongestPath());
   }
 
   public static void printGraph()
   {
     for(int i  = 0; i < n;i++)
-    {
       if(D.adj[i]!=null)
         for(Edge e : D.adj(i))
           System.out.println(e.toString());
-    }
   }
 
   //for now we assume beta = 1-alpha
@@ -74,9 +76,7 @@ public class EEGraph
       double e_max = (1-2*currAlpha)/(1+2*currAlpha);
       double d_max = 1-e/e_max;
       if(e < e_max && d<=d_max)
-      {
         alpha = currAlpha;
-      }
       currAlpha+=.001;
     }
     return alpha;
@@ -91,126 +91,76 @@ public class EEGraph
   }
 
   @SuppressWarnings("unchecked")
-  public static ArrayList<Integer> erdosAttack(double e)
+  public static void lazyValiantAttack()
   {
-    int edgeCount = 0; //to see how many edges are added to the C_k(if it differs from total number of edges)
-    int r = (int)Math.ceil(D.m/997.0);
-          //(int)Math.floor(D.m/(e*n)); //this is likely the value that I will use once I figure out how to get rid of the empty sets
-    double p = Math.log(n)/r;
-    System.out.println("r  = " + r + ". p = " + p); //debugging
+    int b = 2;
+    int depthG = n-2; //every vertex will be connected to its neighbor, so the initial depth is just the path from 1->2->3->...->998->999
+    int numSSets = (int)Math.ceil(Math.log(depthG)/Math.log(b));
+    ArrayList<Integer> [] S = (ArrayList<Integer>[]) new ArrayList [numSSets]; //sets of edge destinations
 
-    //divide edges into sets based on their length
-    ArrayList<Edge>[] C = (ArrayList<Edge>[]) new ArrayList[r];
-    for(int k = 0; k < r; k++)
+    int maxDiffBit = (int)Math.ceil(Math.log(n)/Math.log(2));
+    //because each vertex is connected to its neighbor, the labelling descibed by Valiant is the same as the inital labelling
+    for(int u=1;u<n;u++) //for every vertex
     {
-      C[k] = new ArrayList<Edge>();
-      for(int u = 1; u < n-1; u++)
+      for(Edge s : D.adj[u]) //and every edge adjacent to said vertex
       {
-        for(Edge s : D.adj(u))
+        int length = s.destination-u;
+        for(int i = maxDiffBit; i>0;i--)
         {
-          int length = s.destination-u;
-          if(length >= Math.pow(2,k*p) && length < Math.pow(2,(k+1)*p))
-          {
-            C[k].add(s);
-            edgeCount++;
+          if(length >= Math.pow(2,i))//if the length of that edge is greater than or equal to 2^i,
+          {                          //then the bit representation of the adjacent vertices differ in the ith bit(from the left)
+            if(S[maxDiffBit-i]==null)
+              S[maxDiffBit-i] = new ArrayList<Integer>();
+            S[maxDiffBit-i].add(s.destination);
+            break;
           }
         }
       }
     }
 
-    System.out.println("total edges in the C_i = " + edgeCount + ". true size = "+D.m); //debugging
+    //map size of each S_i to i(use TreeSet to keep in sorted order of size)
+    TreeMap<Integer, Integer> SSize = new TreeMap<Integer,Integer>();
+    for(int i = 0; i<S.length;i++)
+      if(S[i]!=null)
+        SSize.put(S[i].size(),i);
 
-    //find a set with number of edges below average to remove
-    int k = 0;
-    ArrayList<Edge> C_k = new ArrayList<Edge> (C[k]);
-    for(int i = 0; i< r; i++)
+    //create set(no duplicate) of vertices to remove by adding from the smallest sized S_i
+    Set<Integer> toRemove = new TreeSet<Integer>();
+    for(int i : SSize.keySet())
     {
-      if(C[i].size()<= D.m/r && C[i].size()!=0)
+      ArrayList<Integer> S_i = S[SSize.get(i)];
+      int j = 0;
+      while(toRemove.size()<=e*n)
       {
-        C_k = C[i];
-        k = i;
-        System.out.println("changed k to " + k); //debugging
-        break;
+        toRemove.add(S_i.get(j));
+        j++;
       }
     }
 
+    //remove vertices
+    for(int s : toRemove)
+      deleteVertex(s);
 
-    //debugging
-    //for(Edge s : C_k) System.out.println(s.toString());
-    for(int i  = 0; i<r; i++)
-      System.out.println("Size of C_" + i + " = " + C[i].size());
 
-    //construct blocks of consecutive vertices
-    int bigConst = (int)(Math.pow(2,k*p)*(1+Math.pow(2,p/2)));
-    int numVSets = (int) n/bigConst;
-    ArrayList<Integer>[] B = (ArrayList<Integer>[]) new ArrayList[numVSets];
-    for(int i = 0; i< numVSets; i++)
+    System.out.println("toRemove.size: " + toRemove.size());
+  }
+
+  //print degree(out) of each vertex
+  public static void degreeD()
+  {
+    TreeMap<Integer, ArrayList<Integer>> vertexDeg = new TreeMap<Integer, ArrayList<Integer>>();
+    for(int i = 1; i<n;i++)
     {
-      B[i] = new ArrayList<Integer>();
-      for(int v = 0; v<n-1; v++)
+      int deg = D.adj[i].size();
+      if(!vertexDeg.containsKey(deg))
       {
-        if(v >= i*bigConst && v < (i+1)*bigConst)
-        {
-          B[i].add(v);
-        }
+        vertexDeg.put(deg, new ArrayList<Integer>());
       }
+      vertexDeg.get(deg).add(i);
     }
 
-    //split each block into a head and tail
-    ArrayList<Integer>[] H = (ArrayList<Integer>[]) new ArrayList[numVSets];
-    for(int i  = 0; i< numVSets; i++)
-    {
-      H[i] = new ArrayList<Integer>();
-      for(int v : B[i])
-      {
-        if(i*bigConst <= v && i*bigConst + Math.pow(2,k*p) >v)
-        {
-          H[i].add(v);
-        }
-      }
-    }
-
-    //debugging
-    // for(int i  = 0; i<numVSets; i++)
-    //   System.out.println("Size of H_" + i + " = " + H[i].size());
-
-    //remove the end vertex of each in the chosen C_k
-    //System.out.println("removing from C_" + k); //debugging
-    ArrayList<Integer> S = new ArrayList<Integer>();
-    for(Edge s : C_k)
-    {
-      if(!S.contains(s.destination))
-      {
-        S.add(s.destination);
-        //System.out.println("removing " + s.destination);//debugging
-      }
-    }
-
-    //remove every vertex in the head of each block
-    //System.out.println("removing from H_i"); //debugging
-    for(ArrayList<Integer> H_i : H)
-    {
-      for(int v : H_i)
-      {
-        if(!S.contains(v))
-        {
-          S.add(v);
-          //System.out.println("removing " + v);//debugging
-        }
-      }
-    }
-
-    for(int v: S)
-    {
-      deleteVertex(v);
-    }
-
-    // int longPath = findLongestPath();
-    // System.out.println("Longest path = " + longPath);
-    // System.out.println("This graph is (" +e*n + ", " + longPath +")-depth robust");
-    System.out.println("total number of vertices removed = " + S.size());
-    Collections.sort(S); //want to print them out in order
-    return S;//return set of vertices removed
+    for(int deg : vertexDeg.keySet())
+      System.out.println("vertices with out degree " + deg  + " = "+ vertexDeg.get(deg).size());
   }
 
   public static void deleteVertex(int v) //throws Exception
@@ -240,7 +190,6 @@ public class EEGraph
     D.adj[v].removeAll(toRemove); //don't want to mess with iterable, while iterating
   }
 
-   // Function that returns the longest path
    static int findLongestPath()
    {
      ArrayList<Edge> longestPath = new ArrayList<Edge>();
@@ -279,12 +228,29 @@ public class EEGraph
        }
      }
 
-     System.out.print("longest path: ");
-     for(Edge e : longestPath) System.out.print(e.toString() + " ");
-     System.out.println();
+     // System.out.print("longest path: ");
+     // for(Edge e : longestPath) System.out.print(e.toString() + " ");
+     // System.out.println();
 
      return longestLength;
    }
+
+   //get bit representation of integer(unused for now)
+   public static String toBitString(int n)
+	 {
+		if(n==0)
+			return "";
+		char [] arr = new char[(int)(Math.log(n)/Math.log(2)+1)];
+		for(int i = 0; i<arr.length;i++)
+			arr[i] = '0';
+		while(n!=0)
+		{
+			double d = Math.log(n)/Math.log(2);
+			arr[arr.length-1-(int)d] = '1';
+			n=n-(int)Math.pow(2,(int)d);
+		}
+		return new String(arr);
+	 }
 
 }//end EEGraph class------------------------------------------------------------
 
