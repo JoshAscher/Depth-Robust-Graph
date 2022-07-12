@@ -19,13 +19,14 @@ public class EEGraph
     System.out.print("r0 = ");
     double r0 = scan.nextDouble();
     */
-    // System.out.println("Desired depth robustness? e  = ");
-    // e = scan.nextDouble();
-    // System.out.print("d = ");
-    // d = scan.nextDouble();
+    System.out.println("Desired depth robustness? e  = ");
+    e = scan.nextDouble();
+    System.out.print("d = ");
+    d = scan.nextDouble();
 
 
-    n=1000; int r_0=4; e=.22; d=.11;
+
+    n=1000; int r_0=4; //e=.22; d=.11;
     D = new Digraph(n);
     double alpha = findParameters(e,d,r_0);
     double beta = 1-alpha;//simplification for now;
@@ -46,7 +47,7 @@ public class EEGraph
         int k = (int)Math.floor(rand.nextDouble(Math.log(v+1)));
         Edge e = new Edge(v - (int)Math.pow(2,k),v);
         if(D.addEdge(e))
-          edgeAdded++;//continue;//System.out.println("added " + e.toString());
+          edgeAdded++;//System.out.println("added " + e.toString());
       }
     }
 
@@ -109,9 +110,10 @@ public class EEGraph
         {
           if(length >= Math.pow(2,i))//if the length of that edge is greater than or equal to 2^i,
           {                          //then the bit representation of the adjacent vertices differ in the ith bit(from the left)
-            if(S[maxDiffBit-i]==null)
-              S[maxDiffBit-i] = new ArrayList<Integer>();
-            S[maxDiffBit-i].add(s.destination);
+            if(S[i]==null)
+              S[i] = new ArrayList<Integer>();
+            S[i].add(s.destination);
+            System.out.println("added " + s.toString() + " to S["+i+"]");
             break;
           }
         }
@@ -124,13 +126,15 @@ public class EEGraph
       if(S[i]!=null)
         SSize.put(S[i].size(),i);
 
+    for(int i : SSize.keySet()) System.out.println("S[" + SSize.get(i) + "] contains " + i + " vertices.");
+
     //create set(no duplicate) of vertices to remove by adding from the smallest sized S_i
     Set<Integer> toRemove = new TreeSet<Integer>();
     for(int i : SSize.keySet())
     {
       ArrayList<Integer> S_i = S[SSize.get(i)];
       int j = 0;
-      while(toRemove.size()<=e*n)
+      while(toRemove.size()<=e*n && j<S_i.size())
       {
         toRemove.add(S_i.get(j));
         j++;
@@ -139,7 +143,10 @@ public class EEGraph
 
     //remove vertices
     for(int s : toRemove)
+    {
       deleteVertex(s);
+      //System.out.println("removed " + s);
+    }
 
 
     System.out.println("toRemove.size: " + toRemove.size());
