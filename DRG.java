@@ -49,6 +49,8 @@ public class DRG
         Edge e = new Edge(v - (int)Math.pow(2,k),v);            //the longer an edge can possibly be
         if(D.addEdge(e))
           edgeAdded++;//System.out.println("added " + e.toString() + ". length = " +  e.length);
+        // else
+        //   System.out.println(e.toString() + " is duplicate");
       }
     }
 
@@ -97,7 +99,7 @@ public class DRG
   @SuppressWarnings("unchecked")
   public static void lazyValiantAttack()
   {
-    int b = 3;
+    int b = 2;
     int depthG = n-2; //every vertex will be connected to its neighbor, so the initial depth is just the path from 1->2->3->...->998->999
     int numSSets = (int)Math.ceil(Math.log(depthG)/Math.log(b));
     ArrayList<Integer> [] S = (ArrayList<Integer>[]) new ArrayList [numSSets]; //sets of edge destinations
@@ -116,7 +118,7 @@ public class DRG
             if(S[i]==null)
               S[i] = new ArrayList<Integer>();
             S[i].add(s.destination);
-            // if(i==4)
+            // if(i==1)
             //   System.out.println(s.toString() + ": added " + s.destination + " to S["+i+"]");
             break;
           }
