@@ -27,6 +27,7 @@ public class DRG
 
 
 
+
     n=1000; int r_0=4;
     D = new DAG(n);
     double alpha = findParameters(e,d,r_0);
