@@ -27,16 +27,16 @@ public class DRG
 
 
 
-    n=1000; int r_0=4; //e=.22; d=.11;
+    n=1000; int r_0=4;
     D = new DAG(n);
     double alpha = findParameters(e,d,r_0);
     double beta = 1-alpha;//simplification for now;
 
     delta = (int)Math.ceil(-2*(-alpha*Math.log(alpha)-(1-alpha)*Math.log(1-alpha))*Math.log(2)/(alpha*Math.log((2-alpha)/2))); //condition for delta outlined in Overleaf doc
-    System.out.println("alpha = " + alpha + ". beta = " + beta + ". delta = " + delta)
+    System.out.println("alpha = " + alpha + ". beta = " + beta + ". delta = " + delta);
 
-    baseExpander(n, alpha, beta, r_0); //construct base of graph
-    System.out.println("edges added from base expander: " + D.m);
+    // baseExpander(n, alpha, beta, r_0); //construct base of graph
+    // System.out.println("edges added from base expander: " + D.m);
 
     //algorithm 5.1
     int edgeAdded = 0;
@@ -97,12 +97,12 @@ public class DRG
   @SuppressWarnings("unchecked")
   public static void lazyValiantAttack()
   {
-    int b = 2;
+    int b = 3;
     int depthG = n-2; //every vertex will be connected to its neighbor, so the initial depth is just the path from 1->2->3->...->998->999
     int numSSets = (int)Math.ceil(Math.log(depthG)/Math.log(b));
     ArrayList<Integer> [] S = (ArrayList<Integer>[]) new ArrayList [numSSets]; //sets of edge destinations
 
-    int maxDiffBit = (int)Math.ceil(Math.log(n)/Math.log(2));
+    int maxDiffBit = (int)Math.ceil(Math.log(n)/Math.log(b));
     //because each vertex is connected to its neighbor, the labelling descibed by Valiant is the same as the inital labelling
     for(int u=1;u<n;u++) //for every vertex
     {
