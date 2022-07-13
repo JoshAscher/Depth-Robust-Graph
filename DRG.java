@@ -32,7 +32,7 @@ public class DRG
     double alpha = findParameters(e,d,r_0);
     double beta = 1-alpha;//simplification for now;
 
-    delta = (int)Math.ceil(-2*(-alpha*Math.log(alpha)-(1-alpha)*Math.log(1-alpha))*Math.log(2)/(alpha*Math.log((2-alpha)/2))); //condition for delta outlined in Overleaf doc
+    delta = (int)Math.ceil(-2*(-alpha*log(alpha)-(1-alpha)*log(1-alpha))*Math.log(2)/(alpha*log((2-alpha)/2))); //condition for delta outlined in Overleaf doc
     System.out.println("alpha = " + alpha + ". beta = " + beta + ". delta = " + delta);
 
     // baseExpander(n, alpha, beta, r_0); //construct base of graph
@@ -43,9 +43,9 @@ public class DRG
     Random rand = new Random();
     for(int v = 1; v < n-1; v++)
     {
-      for(int i = 1; i < Math.ceil(delta * Math.log(v+1)/Math.log(2)); i++)
+      for(int i = 1; i < Math.ceil(delta * log(v+1)); i++)
       {
-        int k = (int)Math.floor(rand.nextDouble(Math.log(v+1)));//the higher the vertex number,
+        int k = (int)Math.floor(rand.nextDouble(log(v+1)));//the higher the vertex number,
         Edge e = new Edge(v - (int)Math.pow(2,k),v);            //the longer an edge can possibly be
         if(D.addEdge(e))
           edgeAdded++;//System.out.println("added " + e.toString() + ". length = " +  e.length);
@@ -101,10 +101,10 @@ public class DRG
   {
     int b = 2;
     int depthG = n-2; //every vertex will be connected to its neighbor, so the initial depth is just the path from 1->2->3->...->998->999
-    int numSSets = (int)Math.ceil(Math.log(depthG)/Math.log(b));
+    int numSSets = (int)Math.ceil(log(depthG)/log(b));
     ArrayList<Integer> [] S = (ArrayList<Integer>[]) new ArrayList [numSSets]; //sets of edge destinations
 
-    int maxDiffBit = (int)Math.ceil(Math.log(n)/Math.log(b));
+    int maxDiffBit = (int)Math.ceil(log(n)/log(b));
     //because each vertex is connected to its neighbor, the labelling descibed by Valiant is the same as the inital labelling
     for(int u=1;u<n;u++) //for every vertex
     {
@@ -249,6 +249,12 @@ public class DRG
 		}
 		return new String(arr);
 	 }
+
+   //convert to log_2
+   public static double log(double n)
+   {
+     return Math.log(n)/Math.log(2);
+   }
 
 }//end EEGraph class------------------------------------------------------------
 
