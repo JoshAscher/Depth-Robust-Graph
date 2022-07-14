@@ -1,6 +1,7 @@
 import java.util.*;
 import java.io.*;
 
+
 public class DRG
 {
   static int n;
@@ -9,7 +10,7 @@ public class DRG
   static double d;
   static DAG D;
 
-  public static void main(String [] args) throws IOException
+  public static void main(String [] args) throws Exception
   {
     Scanner scan = new Scanner(System.in);
 
@@ -25,9 +26,6 @@ public class DRG
     System.out.print("d = ");
     d = scan.nextDouble();
 
-
-
-
     n=1000; int r_0=4;
     D = new DAG(n);
     double alpha = findParameters(e,d,r_0);
@@ -41,28 +39,33 @@ public class DRG
 
     //algorithm 5.1
     int edgeAdded = 0;
+    int duplicateEdges = 0;
     Random rand = new Random();
     for(int v = 1; v < n-1; v++)
     {
       for(int i = 1; i < Math.ceil(delta * log(v+1)); i++)
       {
-        int k = (int)Math.floor(rand.nextDouble(log(v+1)));//the higher the vertex number,
-        Edge e = new Edge(v - (int)Math.pow(2,k),v);            //the longer an edge can possibly be
+        double k = rand.nextDouble(log(v+1));//the higher the vertex number,
+        Edge e = new Edge(v - (int)Math.floor(Math.pow(2,k)),v);            //the longer an edge can possibly be
         if(D.addEdge(e))
-          edgeAdded++;//System.out.println("added " + e.toString() + ". length = " +  e.length);
-        // else
-        //   System.out.println(e.toString() + " is duplicate");
+        {
+          edgeAdded++;
+          //System.out.println("added " + e.toString() + ". length = " +  e.length);
+        }
+        else
+          duplicateEdges++;
       }
     }
 
+    System.out.println("edges added from alg: " + edgeAdded);
+    System.out.println("duplicateEdges from alg: " + duplicateEdges);
+    System.out.println("total size: " + D.m);
     // for(int i = 0; i<n;i++)
     //   System.out.println("inDeg("+i+") = " + D.inDeg[i]);
 
-    System.out.println("edges added from alg: " + edgeAdded);
-    System.out.println("total size: " + D.m);
+    valiantAttack(2);
+    //System.out.println("Longest path after deletion = " + findLongestPath());
 
-    lazyValiantAttack();
-    System.out.println("Longest path after deletion = " + findLongestPath());
   }
 
   public static void printGraph()
@@ -98,9 +101,8 @@ public class DRG
   }
 
   @SuppressWarnings("unchecked")
-  public static void lazyValiantAttack()
+  public static void valiantAttack(int b) throws Exception
   {
-    int b = 2;
     int depthG = n-2; //every vertex will be connected to its neighbor, so the initial depth is just the path from 1->2->3->...->998->999
     int numSSets = (int)Math.ceil(log(depthG)/log(b));
     ArrayList<Integer> [] S = (ArrayList<Integer>[]) new ArrayList [numSSets]; //sets of edge destinations
@@ -119,8 +121,6 @@ public class DRG
             if(S[i]==null)
               S[i] = new ArrayList<Integer>();
             S[i].add(s.destination);
-            // if(i==1)
-            //   System.out.println(s.toString() + ": added " + s.destination + " to S["+i+"]");
             break;
           }
         }
@@ -138,30 +138,30 @@ public class DRG
       System.out.println("S[" + SSize.get(i) + "] contains " + i + " vertices.");
 
     //create set(no duplicate) of vertices to remove by adding from the smallest sized S_i
-    Set<Integer> toRemove = new TreeSet<Integer>();
+    Set<Integer> removed = new TreeSet<Integer>();
+    Scanner pause = new Scanner(System.in);
     for(int i : SSize.keySet())
     {
       ArrayList<Integer> S_i = S[SSize.get(i)];
-      int j = 0;
-      while(toRemove.size()<=e*n && j<S_i.size())
+      Collections.sort(S_i); //makes it easier to see which vertices are removed if they are sorted
+      for(int j = 0;removed.size()<e*n;j++)
       {
-        toRemove.add(S_i.get(j));
-        j++;
+        if(removed.add(S_i.get(j))) //don't attempt to remove a vertex more than once
+          System.out.println("removed " + deleteVertex(S_i.get(j)));
       }
+
+      //for modulating total number of vertices removed(if not just doing e*n)
+      //System.out.println("totalRemoved = " + removed.size() + ". longestPath = " + findLongestPath());
+      // System.out.print("continue(Y/n)?");
+      // if(!pause.next().equals("Y"))
+      //   System.exit(0);
     }
-
-    //remove vertices
-    for(int s : toRemove)
-    {
-      deleteVertex(s);
-      //System.out.println("removed " + s);
-    }
-
-
-    System.out.println("toRemove.size: " + toRemove.size());
+    System.out.println("totalRemoved = " + removed.size() + ". longestPath = " + findLongestPath());
   }
 
-  public static void deleteVertex(int v) //throws Exception
+
+
+  public static int deleteVertex(int v) throws Exception
   {
     if(v > n)
     {
@@ -186,76 +186,148 @@ public class DRG
     }
 
     D.adj[v].removeAll(toRemove);
+
+    return v;//return deleted vertex
   }
 
-   static int findLongestPath()
+  //for implementing Valiant attack as is(unused)
+  public static Edge deleteEdge(Edge e) throws Exception
+  {
+    int i = 0;
+    while(true)
+    {
+      if(D.adj[i].contains(e))
+        break;
+      if(i>=n)
+        throw new RuntimeException("edge " + e + " not in digragh");
+      i++;
+    }
+
+    int source = e.source;
+    int destination = e.destination;
+    D.adj[source].remove(e);
+    D.outDeg[source]-=1;
+    D.inDeg[destination]-=1;
+
+    return e; //return deleted edge
+  }
+
+  //longest path algs found online----------------------------------------------
+  static void dfs(int node, int dp[], boolean visited[])
+  {
+    // Mark as visited
+    visited[node] = true;
+
+    // Traverse for all its children
+    for (int i = 0; i < D.adj[node].size(); i++)
+    {
+      // If not visited
+      if (!visited[D.adj[node].get(i).destination])
+        dfs(D.adj[node].get(i).destination, dp, visited);
+
+      // Store the max of the paths
+      dp[node] = Math.max(dp[node], 1 + dp[D.adj[node].get(i).destination]);
+    }
+  }
+
+  static  int findLongestPath()
+  {
+    // Dp array
+    int[] dp = new int[n+1];
+
+    // Visited array to know if the node
+    // has been visited previously or not
+    boolean[] visited = new boolean[n + 1];
+
+    // Call DFS for every unvisited vertex
+    for (int i = 1; i <= n; i++)
+    {
+      if (!visited[i])
+        dfs(i, dp, visited);
+    }
+
+    int ans = 0;
+
+    // Traverse and find the maximum of all dp[i]
+    for (int i = 1; i <= n; i++)
+    {
+      ans = Math.max(ans, dp[i]);
+    }
+    return ans;
+  }
+
+
+  //former longest path alg(prints actual longest path but takes way too long)
+  /*
+ static int findLongestPath()
+ {
+   ArrayList<Edge> longestPath = new ArrayList<Edge>();
+   int longestLength = 0;
+   for(int source = 1; source<n-1; source++)
    {
-     ArrayList<Edge> longestPath = new ArrayList<Edge>();
-     int longestLength = 0;
-     for(int source = 1; source<n-1; source++)
+     for(int dest = 0; dest<n;dest++)
      {
-       for(int dest = 0; dest<n;dest++)
+       int currLength = 0;
+       ArrayList<Edge> currPath = new ArrayList<Edge>();
+       D.dijkstras(source,dest);
+
+       if(!D.marked[dest])//if no path from source to dest, skip
+        continue;
+
+       Stack<Integer> path = new Stack<Integer>();
+       for (int x = dest; x != source; x = D.edgeTo[x])
        {
-         int currLength = 0;
-         ArrayList<Edge> currPath = new ArrayList<Edge>();
-         D.dijkstras(source,dest);
+          path.push(x);
+          currLength++;
+          currPath.add(new Edge(x, D.edgeTo[x]));
+       }
 
-         if(!D.marked[dest])//if no path from source to dest, skip
-          continue;
+       int prevVertex = source;
+       while(!path.empty())
+       {
+         int w = path.pop();
+         prevVertex = w;
+       }
 
-         Stack<Integer> path = new Stack<Integer>();
-         for (int x = dest; x != source; x = D.edgeTo[x])
-         {
-            path.push(x);
-            currLength++;
-            currPath.add(new Edge(x, D.edgeTo[x]));
-         }
-
-         int prevVertex = source;
-         while(!path.empty())
-         {
-           int w = path.pop();
-           prevVertex = w;
-         }
-
-         if(currLength>longestLength)
-         {
-          longestLength = currLength;
-          longestPath = currPath;
-         }
+       if(currLength>longestLength)
+       {
+        longestLength = currLength;
+        longestPath = currPath;
        }
      }
-
-     // System.out.print("longest path: ");
-     // for(Edge e : longestPath)
-     //   System.out.print(e.toString() + " ");
-     // System.out.println();
-
-     return longestLength;
    }
 
-   //get bit representation of integer(unused for now)
-   public static String toBitString(int n)
-	 {
-		if(n==0)
-			return "";
-		char [] arr = new char[(int)(Math.log(n)/Math.log(2)+1)];
-		for(int i = 0; i<arr.length;i++)
-			arr[i] = '0';
-		while(n!=0)
-		{
-			double d = Math.log(n)/Math.log(2);
-			arr[arr.length-1-(int)d] = '1';
-			n=n-(int)Math.pow(2,(int)d);
-		}
-		return new String(arr);
-	 }
+   System.out.print("longest path: ");
+   for(Edge e : longestPath)
+     System.out.print(e.toString() + " ");
+   System.out.println();
 
-   //convert to log_2
-   public static double log(double n)
-   {
-     return Math.log(n)/Math.log(2);
-   }
+   return longestLength;
+  }
+*/
+
+ //get bit representation of integer(unused for now)
+ public static String toBitString(int n)
+ {
+	if(n==0)
+		return "";
+	char [] arr = new char[(int)(Math.log(n)/Math.log(2)+1)];
+	for(int i = 0; i<arr.length;i++)
+		arr[i] = '0';
+	while(n!=0)
+	{
+		double d = Math.log(n)/Math.log(2);
+		arr[arr.length-1-(int)d] = '1';
+		n=n-(int)Math.pow(2,(int)d);
+	}
+	return new String(arr);
+ }
+
+ //convert to log_2
+ public static double log(double n)
+ {
+   return Math.log(n)/Math.log(2);
+ }
 
 }//end EEGraph class------------------------------------------------------------
 
