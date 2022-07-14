@@ -1,7 +1,6 @@
 import java.util.*;
 import java.io.*;
 
-
 public class DRG
 {
   static int n;
@@ -15,18 +14,18 @@ public class DRG
     Scanner scan = new Scanner(System.in);
 
     //for now, these parameters are hardcoded
-    /*System.out.print("n = ");
+    //System.out.print("r0 = ");
+    //double r0 = scan.nextDouble();
+    
+    System.out.print("n = ");
     n = scan.nextInt();
-    System.out.print("r0 = ");
-    double r0 = scan.nextDouble();
-    */
     System.out.println("Desired depth robustness?");
     System.out.print("e = ");
     e = scan.nextDouble();
     System.out.print("d = ");
     d = scan.nextDouble();
 
-    n=1000; int r_0=4;
+    n=10000; int r_0=4;
     D = new DAG(n);
     double alpha = findParameters(e,d,r_0);
     double beta = 1-alpha;//simplification for now;
@@ -57,7 +56,7 @@ public class DRG
       }
     }
 
-    System.out.println("edges added from alg: " + edgeAdded);
+    //System.out.println("edges added from alg: " + edgeAdded);
     System.out.println("duplicateEdges from alg: " + duplicateEdges);
     System.out.println("total size: " + D.m);
     // for(int i = 0; i<n;i++)
@@ -111,13 +110,14 @@ public class DRG
     //because each vertex is connected to its neighbor, the labelling descibed by Valiant is the same as the inital labelling
     for(int u=1;u<n;u++) //for every vertex
     {
+      String uBits = toBitString(u, maxDiffBit);
       for(Edge s : D.adj[u]) //and every edge adjacent to said vertex
       {
-        int length = s.destination-u;
+        String vBits = toBitString(s.destination, maxDiffBit);  //v is the destination node of edge s
         for(int i = 0; i<maxDiffBit;i++)
         {
-          if(length >= Math.pow(2,maxDiffBit-i))//if the length of that edge is greater than or equal to 2^i,
-          {                          //then the bit representation of the adjacent vertices differ in the ith bit(from the left)
+          if(uBits.charAt(i)!= vBits.charAt(i))//if bit representation of the adjacent vertices differ in the ith bit(from the left)
+          {
             if(S[i]==null)
               S[i] = new ArrayList<Integer>();
             S[i].add(s.destination);
@@ -127,6 +127,12 @@ public class DRG
       }
     }
 
+    //notes
+    /*
+    build histogram with both endpoints
+    almost everywhere expander proof
+    */
+
     //map size of each S_i to i(use TreeSet to keep in sorted order of size)
     TreeMap<Integer, Integer> SSize = new TreeMap<Integer,Integer>();
     for(int i = 0; i<S.length;i++)
@@ -134,8 +140,8 @@ public class DRG
         SSize.put(S[i].size(),i);
 
     //print size of each S_i
-    for(int i : SSize.keySet())
-      System.out.println("S[" + SSize.get(i) + "] contains " + i + " vertices.");
+    //for(int i : SSize.keySet())
+    //  System.out.println("S[" + SSize.get(i) + "] contains " + i + " vertices.");
 
     //create set(no duplicate) of vertices to remove by adding from the smallest sized S_i
     Set<Integer> removed = new TreeSet<Integer>();
@@ -144,10 +150,10 @@ public class DRG
     {
       ArrayList<Integer> S_i = S[SSize.get(i)];
       Collections.sort(S_i); //makes it easier to see which vertices are removed if they are sorted
-      for(int j = 0;removed.size()<e*n;j++)
+      for(int j = 0;j<S_i.size() && removed.size()<e*n;j++)
       {
         if(removed.add(S_i.get(j))) //don't attempt to remove a vertex more than once
-          System.out.println("removed " + deleteVertex(S_i.get(j)));
+          deleteVertex(S_i.get(j));//System.out.println("removed " + deleteVertex(S_i.get(j)));
       }
 
       //for modulating total number of vertices removed(if not just doing e*n)
@@ -256,67 +262,17 @@ public class DRG
     return ans;
   }
 
-
-  //former longest path alg(prints actual longest path but takes way too long)
-  /*
- static int findLongestPath()
- {
-   ArrayList<Edge> longestPath = new ArrayList<Edge>();
-   int longestLength = 0;
-   for(int source = 1; source<n-1; source++)
-   {
-     for(int dest = 0; dest<n;dest++)
-     {
-       int currLength = 0;
-       ArrayList<Edge> currPath = new ArrayList<Edge>();
-       D.dijkstras(source,dest);
-
-       if(!D.marked[dest])//if no path from source to dest, skip
-        continue;
-
-       Stack<Integer> path = new Stack<Integer>();
-       for (int x = dest; x != source; x = D.edgeTo[x])
-       {
-          path.push(x);
-          currLength++;
-          currPath.add(new Edge(x, D.edgeTo[x]));
-       }
-
-       int prevVertex = source;
-       while(!path.empty())
-       {
-         int w = path.pop();
-         prevVertex = w;
-       }
-
-       if(currLength>longestLength)
-       {
-        longestLength = currLength;
-        longestPath = currPath;
-       }
-     }
-   }
-
-   System.out.print("longest path: ");
-   for(Edge e : longestPath)
-     System.out.print(e.toString() + " ");
-   System.out.println();
-
-   return longestLength;
-  }
-*/
-
- //get bit representation of integer(unused for now)
- public static String toBitString(int n)
+ //get bit representation of integer with maxBit length
+ public static String toBitString(int n, int maxBit)
  {
 	if(n==0)
 		return "";
-	char [] arr = new char[(int)(Math.log(n)/Math.log(2)+1)];
+	char [] arr = new char[maxBit];
 	for(int i = 0; i<arr.length;i++)
 		arr[i] = '0';
 	while(n!=0)
 	{
-		double d = Math.log(n)/Math.log(2);
+		double d = log(n);
 		arr[arr.length-1-(int)d] = '1';
 		n=n-(int)Math.pow(2,(int)d);
 	}
