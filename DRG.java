@@ -16,9 +16,9 @@ public class DRG
     //for now, these parameters are hardcoded
     //System.out.print("r0 = ");
     //double r0 = scan.nextDouble();
+    // System.out.print("n = ");
+    // n = scan.nextInt();
     
-    System.out.print("n = ");
-    n = scan.nextInt();
     System.out.println("Desired depth robustness?");
     System.out.print("e = ");
     e = scan.nextDouble();
